@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp"
-    android:background="@android:color/white">
+    android:background="#FFFFFF"
+    android:padding="24dp">
 
     <LinearLayout
-        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:gravity="center_horizontal"
         android:paddingTop="40dp">
 
@@ -29,56 +29,89 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Reset Password"
+            android:text="Verification Code"
             android:textSize="28sp"
             android:textStyle="bold"
             android:textColor="#000000"
             android:layout_marginBottom="8dp" />
 
-        <!-- Subtitle -->
+        <!-- Phone Number Display -->
         <TextView
+            android:id="@+id/tvPhoneNumber"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Enter your email address and we'll send you a link to reset your password"
+            android:text="Code sent to +1 234 567 8900"
             android:textSize="16sp"
             android:textColor="#666666"
-            android:gravity="center"
-            android:layout_marginBottom="32dp"
-            android:lineSpacingExtra="4dp" />
+            android:layout_marginBottom="32dp" />
 
-        <!-- Email Input -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tilEmail"
-            android:layout_width="match_parent"
+        <!-- OTP Input Fields -->
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:hint="Email Address"
-            android:layout_marginBottom="24dp"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            android:orientation="horizontal"
+            android:layout_marginBottom="32dp"
+            android:gravity="center">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etEmail"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textEmailAddress" />
+            <EditText
+                android:id="@+id/etOtp1"
+                style="@style/OTPEditTextStyle"
+                android:layout_marginEnd="8dp" />
 
-        </com.google.android.material.textfield.TextInputLayout>
+            <EditText
+                android:id="@+id/etOtp2"
+                style="@style/OTPEditTextStyle"
+                android:layout_marginEnd="8dp" />
 
-        <!-- Send Reset Email Button -->
+            <EditText
+                android:id="@+id/etOtp3"
+                style="@style/OTPEditTextStyle"
+                android:layout_marginEnd="8dp" />
+
+            <EditText
+                android:id="@+id/etOtp4"
+                style="@style/OTPEditTextStyle"
+                android:layout_marginEnd="8dp" />
+
+            <EditText
+                android:id="@+id/etOtp5"
+                style="@style/OTPEditTextStyle"
+                android:layout_marginEnd="8dp" />
+
+            <EditText
+                android:id="@+id/etOtp6"
+                style="@style/OTPEditTextStyle" />
+
+        </LinearLayout>
+
+        <!-- Timer Text -->
+        <TextView
+            android:id="@+id/tvTimer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Resend code in 60s"
+            android:textSize="14sp"
+            android:textColor="#888888"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Verify Button -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp">
 
             <Button
-                android:id="@+id/btnSendResetEmail"
+                android:id="@+id/btnVerify"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="Send Reset Email"
+                android:text="Verify Code"
                 android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:backgroundTint="#5E17EB"
-                android:background="@drawable/button_background" />
+                android:background="@drawable/button_background"
+                android:enabled="false"
+                android:alpha="0.5" />
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -90,16 +123,16 @@
 
         </RelativeLayout>
 
-        <!-- Back to Login Button -->
+        <!-- Resend Code Button -->
         <Button
-            android:id="@+id/btnBackToLogin"
+            android:id="@+id/btnResendCode"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="Back to Login"
+            android:text="Resend Code"
             android:textColor="#5E17EB"
             android:textSize="16sp"
             android:background="@android:color/transparent"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="32dp"
             style="?attr/borderlessButtonStyle" />
 
         <!-- Logo -->
@@ -107,16 +140,16 @@
             android:id="@+id/logo"
             android:layout_width="80dp"
             android:layout_height="80dp"
-            android:layout_marginTop="32dp"
+            android:layout_marginTop="24dp"
             android:layout_gravity="center_horizontal"
             android:src="@drawable/logo" />
 
-        <!-- Info Text -->
+        <!-- Help Text -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Didn't receive the email? Check your spam folder or try again."
+            android:text="Having trouble? Make sure you have a stable internet connection."
             android:textSize="14sp"
             android:textColor="#888888"
             android:gravity="center"
