@@ -45,11 +45,14 @@ dependencies {
     // ✅ Google Mobile Ads (AdMob)
     implementation("com.google.android.gms:play-services-ads:22.6.0")
 
-    // ✅ Firebase (avec versions explicites)
-    implementation("com.google.firebase:firebase-auth:21.2.0")
-    implementation("com.google.firebase:firebase-database:20.2.2")
-    implementation("com.google.firebase:firebase-firestore:24.6.1")
-    implementation("com.google.firebase:firebase-storage:20.2.1")
+    // ✅ Firebase BoM - manages all Firebase dependency versions
+    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
+    
+    // ✅ Firebase dependencies (versions managed by BoM)
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.firebase:firebase-analytics") // Optional: for analytics
 
     // ✅ EmailJS
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

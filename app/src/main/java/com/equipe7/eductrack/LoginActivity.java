@@ -13,8 +13,7 @@ import android.widget.*;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.*;
+import com.google.firebase.firestore.DocumentSnapshot;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -23,13 +22,15 @@ public class LoginActivity extends AppCompatActivity {
     private ImageView logo;
     private TextView tvForgot, tvRegister;
 
-    private FirebaseAuth auth;
-    private DatabaseReference database;
+    private FirebaseManager firebaseManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        // Initialize Firebase Manager
+        firebaseManager = FirebaseManager.getInstance();
 
         // Liaison avec les éléments UI
         etUsername = findViewById(R.id.etUsername);
@@ -40,10 +41,6 @@ public class LoginActivity extends AppCompatActivity {
         tvForgot   = findViewById(R.id.tvForgot);
         tvRegister = findViewById(R.id.tvRegister);
 
-        // Initialisation Firebase
-        auth = FirebaseAuth.getInstance();
-        database = FirebaseDatabase.getInstance().getReference("users");
-
         // Connexion à l'application
         btnSignIn.setOnClickListener(view -> signInUser());
 
@@ -53,8 +50,8 @@ public class LoginActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // ✅ Texte cliquable : "Don’t have an account? Create One"
-        String fullText = "Don’t have an account? Create One";
+        // ✅ Texte cliquable : "Don't have an account? Create One"
+        String fullText = "Don't have an account? Create One";
         SpannableString spannableString = new SpannableString(fullText);
 
         // Partie "Create One" cliquable
@@ -66,7 +63,7 @@ public class LoginActivity extends AppCompatActivity {
             }
         };
 
-        // Texte "Don’t have an account?" en noir
+        // Texte "Don't have an account?" en noir
         spannableString.setSpan(
                 new ForegroundColorSpan(android.graphics.Color.BLACK),
                 0,
@@ -75,7 +72,9 @@ public class LoginActivity extends AppCompatActivity {
         );
 
         // Texte "Create One" en bleu et cliquable
-        spannableString.setSpan(clickableSpan, 24, fullText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        spannableString.setSpan(clickableSpan, 24, fullText.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+
         spannableString.setSpan(
                 new ForegroundColorSpan(android.graphics.Color.BLUE),
                 24,
@@ -88,81 +87,76 @@ public class LoginActivity extends AppCompatActivity {
         tvRegister.setHighlightColor(android.graphics.Color.TRANSPARENT);
     }
 
-    // Méthode de connexion utilisateur avec vérification du rôle
     private void signInUser() {
         String username = etUsername.getText().toString().trim();
-        String email    = etEmail.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
-        if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password) || TextUtils.isEmpty(username)) {
-            Toast.makeText(this, "All fields are required", Toast.LENGTH_SHORT).show();
+        if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
+            Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        auth.signInWithEmailAndPassword(email, password)
+        // Sign in with Firebase Auth
+        firebaseManager.getAuth().signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        String userId = auth.getCurrentUser().getUid();
+                        String userId = firebaseManager.getCurrentUser().getUid();
 
-                        // Récupération des infos depuis Realtime Database
-                        database.child(userId).addListenerForSingleValueEvent(new ValueEventListener() {
-                            @Override
-                            public void onDataChange(DataSnapshot snapshot) {
-                                if (snapshot.exists()) {
-                                    User user = snapshot.getValue(User.class);
+                        // Get user data from Firestore
+                        firebaseManager.getUserData(userId)
+                                .addOnSuccessListener(documentSnapshot -> {
+                                    if (documentSnapshot.exists()) {
+                                        User user = documentSnapshot.toObject(User.class);
+                                        
+                                        if (user != null && user.role != null) {
+                                            Toast.makeText(LoginActivity.this,
+                                                    "Welcome " + (user.username != null ? user.username : user.email) + " (" + user.role + ")",
+                                                    Toast.LENGTH_SHORT).show();
 
-                                    if (user != null && user.role != null) {
-                                        Toast.makeText(LoginActivity.this,
-                                                "Welcome " + user.username + " (" + user.role + ")",
-                                                Toast.LENGTH_SHORT).show();
+                                            // Check if user has accepted terms
+                                            if (!user.acceptedTerms) {
+                                                Intent intent = new Intent(LoginActivity.this, TermsOfUseActivity.class);
+                                                startActivity(intent);
+                                                finish();
+                                                return;
+                                            }
 
-                                        // Redirection selon le rôle
-                                        switch (user.role.toLowerCase()) {
-                                            case "parent":
-                                                startActivity(new Intent(LoginActivity.this, ParentHomeActivity.class));
-                                                break;
-                                            case "teacher":
-                                                startActivity(new Intent(LoginActivity.this, TeacherHomeActivity.class));
-                                                break;
-                                            case "admin":
-                                                startActivity(new Intent(LoginActivity.this, AdminHomeActivity.class));
-                                                break;
-                                            default:
-                                                startActivity(new Intent(LoginActivity.this, MainActivity.class));
-                                                break;
+                                            // Redirect based on role
+                                            redirectToRoleActivity(user.role);
+                                        } else {
+                                            Toast.makeText(LoginActivity.this, "Error loading user data", Toast.LENGTH_SHORT).show();
                                         }
-                                        finish();
                                     } else {
-                                        Toast.makeText(LoginActivity.this, "User role is not defined", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(LoginActivity.this, "User data not found", Toast.LENGTH_SHORT).show();
                                     }
-                                } else {
-                                    Toast.makeText(LoginActivity.this, "User not found in database", Toast.LENGTH_SHORT).show();
-                                }
-                            }
-
-                            @Override
-                            public void onCancelled(DatabaseError error) {
-                                Toast.makeText(LoginActivity.this, "Database error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                            }
-                        });
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(LoginActivity.this, "Error loading user data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
                     } else {
-                        Toast.makeText(this, "Sign-in failed: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Login failed: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
                     }
                 });
     }
 
-    // Classe interne représentant un utilisateur avec rôle
-    public static class User {
-        public String username;
-        public String email;
-        public String role;
-
-        public User() {} // Requis pour Firebase
-
-        public User(String username, String email, String role) {
-            this.username = username;
-            this.email = email;
-            this.role = role;
+    private void redirectToRoleActivity(String role) {
+        Intent intent;
+        switch (role.toLowerCase()) {
+            case "admin":
+                intent = new Intent(this, AdminHomeActivity.class);
+                break;
+            case "teacher":
+                intent = new Intent(this, TeacherHomeActivity.class);
+                break;
+            case "parent":
+                intent = new Intent(this, ParentHomeActivity.class);
+                break;
+            default:
+                intent = new Intent(this, MainActivity.class);
+                break;
         }
+        startActivity(intent);
+        finish();
     }
 }

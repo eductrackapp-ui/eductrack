@@ -27,17 +27,15 @@ public class ActivityParentRegister extends AppCompatActivity {
     private CheckBox cbShowPassword;
     private Button btnNext;
 
-    private FirebaseAuth mAuth;
-    private FirebaseFirestore db;
+    private FirebaseManager firebaseManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_parent_register);
 
-        // Initialisation Firebase
-        mAuth = FirebaseAuth.getInstance();
-        db = FirebaseFirestore.getInstance();
+        // Initialize Firebase Manager
+        firebaseManager = FirebaseManager.getInstance();
 
         // Liaison vues
         etFirstName = findViewById(R.id.etFirstName);
@@ -98,10 +96,10 @@ public class ActivityParentRegister extends AppCompatActivity {
         }
 
         // Enregistrement sur Firebase Authentication
-        mAuth.createUserWithEmailAndPassword(emailPhone, password)
+        firebaseManager.getAuth().createUserWithEmailAndPassword(emailPhone, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        String userId = mAuth.getCurrentUser().getUid();
+                        String userId = firebaseManager.getCurrentUser().getUid();
 
                         // Préparer les données à stocker dans Firestore
                         Map<String, Object> parentData = new HashMap<>();
@@ -110,13 +108,11 @@ public class ActivityParentRegister extends AppCompatActivity {
                         parentData.put("email", emailPhone);
                         parentData.put("relation", relation);
                         parentData.put("school", school);
-                        parentData.put("role", "parent");
 
-                        // Sauvegarder dans Firestore
-                        db.collection("users").document(userId).set(parentData)
+                        // Use FirebaseManager to create user with role
+                        firebaseManager.createUserWithRole(userId, emailPhone, "parent", parentData)
                                 .addOnSuccessListener(aVoid -> {
                                     showToast("Parent account created successfully!");
-                                    // Aller à la prochaine activité
                                     startActivity(new Intent(ActivityParentRegister.this, CreateAccountActivity.class));
                                     finish();
                                 })

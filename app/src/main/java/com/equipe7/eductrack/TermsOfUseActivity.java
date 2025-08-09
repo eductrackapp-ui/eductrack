@@ -21,8 +21,7 @@ public class TermsOfUseActivity extends AppCompatActivity {
     private TextView tvTerms;
     private Button btnAccept;
 
-    private FirebaseAuth auth;
-    private FirebaseFirestore db;
+    private FirebaseManager firebaseManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,8 +31,7 @@ public class TermsOfUseActivity extends AppCompatActivity {
         tvTerms = findViewById(R.id.tv_terms);
         btnAccept = findViewById(R.id.btn_accept);
 
-        auth = FirebaseAuth.getInstance();
-        db = FirebaseFirestore.getInstance();
+        firebaseManager = FirebaseManager.getInstance();
 
         tvTerms.setText(Html.fromHtml(getFormattedTerms()));
 
@@ -83,21 +81,19 @@ public class TermsOfUseActivity extends AppCompatActivity {
     }
 
     private void saveAcceptanceToFirebase() {
-        if (auth.getCurrentUser() == null) {
+        if (firebaseManager.getCurrentUser() == null) {
             Toast.makeText(this, "Utilisateur non connecté", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String userId = auth.getCurrentUser().getUid();
+        String userId = firebaseManager.getCurrentUser().getUid();
         Map<String, Object> data = new HashMap<>();
         data.put("acceptedTerms", true);
 
-        db.collection("users")
-                .document(userId)
-                .update(data)
+        firebaseManager.updateUserData(userId, data)
                 .addOnSuccessListener(unused -> {
                     Toast.makeText(this, "Conditions acceptées", Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(TermsOfUseActivity.this, MainActivity.BindServiceFlags.class);
+                    Intent intent = new Intent(TermsOfUseActivity.this, MainActivity.class);
                     startActivity(intent);
                     finish();
                 })

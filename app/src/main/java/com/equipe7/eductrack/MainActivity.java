@@ -1,6 +1,21 @@
 package com.equipe7.eductrack;
 
-import android.app.Activity;
+import android.os.Bundle;
+import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        // Create a simple layout programmatically
+        TextView textView = new TextView(this);
+        textView.setText("Welcome to EduTrack!\nMain Activity");
+        textView.setTextSize(18);
+        textView.setPadding(50, 50, 50, 50);
+        
+        setContentView(textView);
+    }
 }

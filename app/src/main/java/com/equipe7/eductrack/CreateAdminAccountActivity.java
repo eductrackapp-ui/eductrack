@@ -24,8 +24,7 @@ public class CreateAdminAccountActivity extends AppCompatActivity {
 
     private Button btnNext;
 
-    private FirebaseAuth mAuth;
-    private FirebaseFirestore db;
+    private FirebaseManager firebaseManager;
 
     @SuppressLint("MissingInflatedId")
     @Override
@@ -33,8 +32,7 @@ public class CreateAdminAccountActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_admin_account);
 
-        mAuth = FirebaseAuth.getInstance();
-        db = FirebaseFirestore.getInstance();
+        firebaseManager = FirebaseManager.getInstance();
 
         // Liaison des vues
         etFullName = findViewById(R.id.etFullName);
@@ -69,10 +67,10 @@ public class CreateAdminAccountActivity extends AppCompatActivity {
                 return;
             }
 
-            mAuth.createUserWithEmailAndPassword(email, password)
+                         firebaseManager.getAuth().createUserWithEmailAndPassword(email, password)
                     .addOnCompleteListener(task -> {
                         if (task.isSuccessful()) {
-                            FirebaseUser firebaseUser = mAuth.getCurrentUser();
+                            FirebaseUser firebaseUser = firebaseManager.getCurrentUser();
                             if (firebaseUser != null) {
                                 Map<String, Object> adminData = new HashMap<>();
                                 adminData.put("fullName", fullName);
@@ -83,14 +81,12 @@ public class CreateAdminAccountActivity extends AppCompatActivity {
                                 adminData.put("sdmcCode", sdmcCode);
                                 adminData.put("role", "admin");
 
-                                db.collection("users")
-                                        .document(firebaseUser.getUid())
-                                        .set(adminData)
+                                firebaseManager.saveUserData(firebaseUser.getUid(), adminData)
                                         .addOnSuccessListener(unused -> {
                                             firebaseUser.sendEmailVerification()
                                                     .addOnSuccessListener(aVoid -> {
                                                         Toast.makeText(this, "Account created. Please verify your email.", Toast.LENGTH_LONG).show();
-                                                        mAuth.signOut();
+                                                        firebaseManager.signOut();
                                                         startActivity(new Intent(this, AdminLoginActivity.class));
                                                         finish();
                                                     })

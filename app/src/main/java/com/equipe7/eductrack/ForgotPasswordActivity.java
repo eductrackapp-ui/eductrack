@@ -12,12 +12,14 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.*;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 import okhttp3.MediaType;
@@ -32,9 +34,7 @@ public class ForgotPasswordActivity extends AppCompatActivity {
     private Button btnSendCode, btnResetPassword;
 
     private String generatedCode;
-    private FirebaseAuth mAuth;
-    private DatabaseReference databaseRef;
-
+    private FirebaseManager firebaseManager;
     private String userUidToReset = null;
 
     private final OkHttpClient client = new OkHttpClient();
@@ -51,8 +51,7 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         btnSendCode = findViewById(R.id.btnSendCode);
         btnResetPassword = findViewById(R.id.btnResetPassword);
 
-        mAuth = FirebaseAuth.getInstance();
-        databaseRef = FirebaseDatabase.getInstance().getReference("users");
+        firebaseManager = FirebaseManager.getInstance();
 
         btnSendCode.setOnClickListener(v -> {
             String email = emailInput.getText().toString().trim();
@@ -61,35 +60,41 @@ public class ForgotPasswordActivity extends AppCompatActivity {
                 return;
             }
 
-            databaseRef.orderByChild("email").equalTo(email)
-                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(DataSnapshot snapshot) {
-                            if (snapshot.exists()) {
-                                for (DataSnapshot userSnap : snapshot.getChildren()) {
-                                    userUidToReset = userSnap.getKey();
-                                    break;
-                                }
-
-                                generatedCode = String.format("%06d", new Random().nextInt(999999));
-
-                                // Envoi de l'email via EmailJS
-                                sendEmailWithEmailJS(email, generatedCode);
-
-                                // Optionnel : sauvegarder le code dans Firebase pour traçabilité
-                                if (userUidToReset != null) {
-                                    databaseRef.child(userUidToReset).child("resetCode").setValue(generatedCode);
-                                }
-
-                            } else {
-                                Toast.makeText(ForgotPasswordActivity.this, "Aucun compte avec cet email", Toast.LENGTH_SHORT).show();
+            // Search for user in Firestore by email
+            firebaseManager.getFirestore().collection("users")
+                    .whereEqualTo("email", email)
+                    .get()
+                    .addOnSuccessListener(queryDocumentSnapshots -> {
+                        if (!queryDocumentSnapshots.isEmpty()) {
+                            for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                                userUidToReset = document.getId();
+                                break;
                             }
-                        }
 
-                        @Override
-                        public void onCancelled(DatabaseError error) {
-                            Toast.makeText(ForgotPasswordActivity.this, "Erreur : " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                            generatedCode = String.format("%06d", new Random().nextInt(999999));
+
+                            // Send email via EmailJS
+                            sendEmailWithEmailJS(email, generatedCode);
+
+                            // Save reset code in Firestore for verification
+                            if (userUidToReset != null) {
+                                Map<String, Object> resetData = new HashMap<>();
+                                resetData.put("resetCode", generatedCode);
+                                resetData.put("resetCodeTimestamp", System.currentTimeMillis());
+                                
+                                firebaseManager.updateUserData(userUidToReset, resetData)
+                                        .addOnSuccessListener(aVoid -> 
+                                            Toast.makeText(this, "Code envoyé à votre email", Toast.LENGTH_SHORT).show())
+                                        .addOnFailureListener(e -> 
+                                            Toast.makeText(this, "Erreur lors de la sauvegarde", Toast.LENGTH_SHORT).show());
+                            }
+
+                        } else {
+                            Toast.makeText(ForgotPasswordActivity.this, "Aucun compte avec cet email", Toast.LENGTH_SHORT).show();
                         }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(ForgotPasswordActivity.this, "Erreur : " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     });
         });
 
@@ -98,75 +103,112 @@ public class ForgotPasswordActivity extends AppCompatActivity {
             String newPass = newPassword.getText().toString().trim();
 
             if (userUidToReset == null) {
-                Toast.makeText(this, "Veuillez d'abord envoyer le code", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Veuillez d'abord demander un code", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            if (!enteredCode.equals(generatedCode)) {
-                Toast.makeText(this, "Code incorrect", Toast.LENGTH_SHORT).show();
+            if (TextUtils.isEmpty(enteredCode) || TextUtils.isEmpty(newPass)) {
+                Toast.makeText(this, "Veuillez remplir tous les champs", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            if (TextUtils.isEmpty(newPass) || newPass.length() < 6) {
-                Toast.makeText(this, "Le mot de passe doit contenir au moins 6 caractères", Toast.LENGTH_SHORT).show();
+            if (newPass.length() < 6) {
+                Toast.makeText(this, "Le mot de passe doit avoir au moins 6 caractères", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            FirebaseUser user = mAuth.getCurrentUser();
-            if (user != null && user.getUid().equals(userUidToReset)) {
-                user.updatePassword(newPass)
-                        .addOnCompleteListener(task -> {
-                            if (task.isSuccessful()) {
-                                Toast.makeText(this, "Mot de passe mis à jour", Toast.LENGTH_LONG).show();
-                                finish();
+            // Verify the reset code from Firestore
+            firebaseManager.getUserData(userUidToReset)
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            String storedCode = documentSnapshot.getString("resetCode");
+                            Long resetTimestamp = documentSnapshot.getLong("resetCodeTimestamp");
+                            
+                            // Check if code is valid and not expired (15 minutes)
+                            if (storedCode != null && storedCode.equals(enteredCode)) {
+                                if (resetTimestamp != null && 
+                                    (System.currentTimeMillis() - resetTimestamp) < 15 * 60 * 1000) {
+                                    
+                                    // Reset password using Firebase Auth
+                                    String userEmail = documentSnapshot.getString("email");
+                                    if (userEmail != null) {
+                                        resetPasswordForUser(userEmail, newPass);
+                                    }
+                                } else {
+                                    Toast.makeText(this, "Code expiré. Veuillez demander un nouveau code", Toast.LENGTH_SHORT).show();
+                                }
                             } else {
-                                Toast.makeText(this, "Erreur : " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                Toast.makeText(this, "Code incorrect", Toast.LENGTH_SHORT).show();
                             }
-                        });
-            } else {
-                Toast.makeText(this, "Reconnecte-toi pour changer le mot de passe", Toast.LENGTH_LONG).show();
-            }
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "Erreur lors de la vérification", Toast.LENGTH_SHORT).show();
+                    });
         });
     }
 
-    private void sendEmailWithEmailJS(String email, String code) {
+    private void resetPasswordForUser(String email, String newPassword) {
+        // Note: Firebase doesn't allow direct password reset from client side
+        // This would typically require a custom backend or using Firebase Admin SDK
+        // For now, we'll use the standard password reset flow
+        
+        firebaseManager.getAuth().sendPasswordResetEmail(email)
+                .addOnSuccessListener(aVoid -> {
+                    // Clear the reset code
+                    Map<String, Object> clearData = new HashMap<>();
+                    clearData.put("resetCode", null);
+                    clearData.put("resetCodeTimestamp", null);
+                    
+                    firebaseManager.updateUserData(userUidToReset, clearData);
+                    
+                    Toast.makeText(this, "Email de réinitialisation envoyé", Toast.LENGTH_LONG).show();
+                    finish();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Erreur : " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void sendEmailWithEmailJS(String toEmail, String code) {
         new Thread(() -> {
             try {
-                JSONObject json = new JSONObject();
-                json.put("service_id", "service_yvl11d5");
-                json.put("template_id", "template_zlp263e");
-                json.put("user_id", "Un7snKzeE4AGeorc");
+                JSONObject emailData = new JSONObject();
+                emailData.put("service_id", "service_eductrack");
+                emailData.put("template_id", "template_forgot_password");
+                emailData.put("user_id", "YOUR_EMAILJS_USER_ID");
 
                 JSONObject templateParams = new JSONObject();
-                templateParams.put("user_email", email);
-                templateParams.put("code", code);
+                templateParams.put("to_email", toEmail);
+                templateParams.put("reset_code", code);
+                templateParams.put("app_name", "EduTrack");
 
-                json.put("template_params", templateParams);
+                emailData.put("template_params", templateParams);
 
                 RequestBody body = RequestBody.create(
-                        json.toString(),
-                        MediaType.parse("application/json; charset=utf-8")
+                        emailData.toString(),
+                        MediaType.get("application/json")
                 );
 
                 Request request = new Request.Builder()
                         .url("https://api.emailjs.com/api/v1.0/email/send")
                         .post(body)
+                        .addHeader("Content-Type", "application/json")
                         .build();
 
                 try (Response response = client.newCall(request).execute()) {
-                    if (response.isSuccessful()) {
-                        runOnUiThread(() ->
-                                Toast.makeText(ForgotPasswordActivity.this, "Code envoyé à votre email", Toast.LENGTH_LONG).show());
-                    } else {
-                        runOnUiThread(() ->
-                                Toast.makeText(ForgotPasswordActivity.this, "Échec de l'envoi du mail", Toast.LENGTH_LONG).show());
-                    }
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(this, "Code envoyé à " + toEmail, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this, "Erreur lors de l'envoi de l'email", Toast.LENGTH_SHORT).show();
+                        }
+                    });
                 }
-
             } catch (JSONException | IOException e) {
-                e.printStackTrace();
-                runOnUiThread(() ->
-                        Toast.makeText(ForgotPasswordActivity.this, "Erreur lors de l'envoi de l'email", Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Erreur : " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }
