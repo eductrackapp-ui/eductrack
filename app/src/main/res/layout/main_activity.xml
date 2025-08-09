@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <!-- Barre du haut -->
+    <RelativeLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:padding="16dp"
+        android:background="@android:color/transparent">
+
+        <!-- Photo de profil -->
+        <ImageView
+            android:id="@+id/imgProfile"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/profile_placeholder"
+            android:scaleType="centerCrop"
+            android:layout_alignParentStart="true"
+            android:background="@drawable/homme"
+            android:elevation="4dp" />
+
+        <!-- Icône paramètres -->
+        <ImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_settings"
+            android:background="@drawable/parametre"
+            android:scaleType="centerInside"
+            android:elevation="4dp"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="50dp"
+            android:contentDescription="Settings" />
+
+        <!-- Icône notifications -->
+        <ImageButton
+            android:id="@+id/btnNotifications"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_notifications"
+            android:background="@drawable/notification"
+            android:scaleType="centerInside"
+            android:elevation="4dp"
+            android:layout_alignParentEnd="true"
+            android:contentDescription="Notifications" />
+
+    </RelativeLayout>
+
+    <!-- Infos élève -->
+    <LinearLayout
+        android:id="@+id/studentInfo"
+        android:layout_below="@id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/tvStudentName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Alison"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#000000" />
+
+        <TextView
+            android:id="@+id/tvStudentStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Student"
+            android:textSize="14sp"
+            android:textColor="#777777" />
+    </LinearLayout>
+
+    <!-- Liste verticale -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/studentInfo"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <!-- Carte devoir -->
+            <include layout="@layout/item_card"
+                android:id="@+id/cardDevoir"
+                android:tag="Devoir" />
+
+            <!-- Carte examen -->
+            <include layout="@layout/item_card"
+                android:id="@+id/cardExamen"
+                android:tag="Examen" />
+
+            <!-- Carte exercices -->
+            <include layout="@layout/item_card"
+                android:id="@+id/cardExercices"
+                android:tag="Exercices en classe" />
+
+            <!-- Carte présentation -->
+            <include layout="@layout/item_card"
+                android:id="@+id/cardPresentation"
+                android:tag="Présentation" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</RelativeLayout>

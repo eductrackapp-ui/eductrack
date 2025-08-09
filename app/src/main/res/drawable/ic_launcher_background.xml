@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Couleur ou image d'arrière-plan -->
+    <background android:drawable="@color/white" />
+
+    <!-- Image du logo au premier plan -->
+    <foreground android:drawable="@drawable/logo" />
+
+    <!-- Optionnel : icône masquée pour certains styles -->
+    <monochrome android:drawable="@drawable/logo" />
+</adaptive-icon>

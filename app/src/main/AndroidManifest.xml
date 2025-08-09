@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.equipe7.eductrack">
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@drawable/logon"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/logon"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.EduCtrack"
+        tools:targetApi="31">
+
+        <!-- Splash Activity (écran de lancement) -->
+        <activity
+            android:name=".SplashActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Authentification & Connexion -->
+        <activity android:name=".LoginActivity" android:exported="true" />
+        <activity android:name=".ForgotPasswordActivity" android:exported="true" />
+        <activity android:name=".AdminLoginActivity" android:exported="true" />
+
+        <!-- Sélection des rôles et pages principales -->
+        <activity android:name=".RoleSelectionActivity" android:exported="true" />
+        <activity android:name=".MainActivity" android:exported="true" />
+
+        <!-- Inscription par rôle -->
+        <activity android:name=".RegisterActivity" android:exported="true" />
+        <activity android:name=".ActivityParentRegister" android:exported="true" />
+        <activity
+            android:name=".RegisterTeacherActivity"
+            android:exported="true"
+            tools:ignore="Instantiatable" />
+
+        <!-- ✅ CreateAdminAccountActivity -->
+        <activity
+            android:name=".CreateAdminAccountActivity"
+            android:exported="true"
+            tools:ignore="Instantiatable" />
+
+        <!-- ✅ CreateAccountActivity (pour élève maternelle) -->
+        <activity
+            android:name=".CreateAccountActivity"
+            android:exported="true"
+            tools:ignore="Instantiatable"/>
+
+        <!-- Accueil par rôle -->
+        <activity
+            android:name=".ParentHomeActivity"
+            android:exported="true"
+            tools:ignore="Instantiatable" />
+        <activity
+            android:name=".AdminHomeActivity"
+            android:exported="true"
+            tools:ignore="Instantiatable" />
+        <activity
+            android:name=".TeacherHomeActivity"
+            android:exported="true"
+            tools:ignore="Instantiatable" />
+
+        <!-- ✅ Terms of Use Activity -->
+        <activity
+            android:name=".TermsOfUseActivity"
+            android:exported="true" />
+
+        <!-- Meta-data pour Google Ads -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3324838736230246~7397836141" />
+
+    </application>
+
+</manifest>

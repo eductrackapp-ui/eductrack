@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="colorPrimary">#5E17EB</color>
+    <color name="colorPrimaryDark">#4A12B6</color>
+    <color name="colorAccent">#F2A33A</color>
+
+    <!-- Background and Surface -->
+    <color name="colorBackground">#FFFFFF</color>
+    <color name="colorSurface">#F6F6F6</color>
+    <color name="colorCard">#F3F2F7</color>
+
+    <!-- Text Colors -->
+    <color name="colorTextPrimary">#000000</color>
+    <color name="colorTextSecondary">#666666</color>
+    <color name="colorTextHint">#888888</color>
+    <color name="colorWhite">#FFFFFF</color>
+
+    <!-- Buttons & Borders -->
+    <color name="colorButton">#5E17EB</color>
+    <color name="colorBorder">#DDDDDD</color>
+    <color name="colorError">#FF4B4B</color>
+    <color name="colorSuccess">#4CAF50</color>
+
+    <!-- Link / Action Text -->
+    <color name="colorLink">#3F51B5</color>
+
+    <!-- Transparent and Shadow -->
+    <color name="colorTransparent">#00000000</color>
+    <color name="colorShadow">#1F000000</color>
+
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="blue_edutrack">#156EBB</color>
+</resources>

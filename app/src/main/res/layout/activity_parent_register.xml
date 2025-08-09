@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:background="#FFFFFF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingTop="40dp"
+        android:paddingBottom="40dp">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Create an account"
+            android:textColor="#000000"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Please enter your information"
+            android:textColor="#888888"
+            android:textSize="16sp"
+            android:layout_marginTop="8dp" />
+
+        <!-- First Name -->
+        <EditText
+            android:id="@+id/etFirstName"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="12dp"
+            android:hint="First Name"
+            android:background="@drawable/edittext_orange_border"
+            android:padding="14dp" />
+
+        <!-- Last Name -->
+        <EditText
+            android:id="@+id/etLastName"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="12dp"
+            android:hint="Last Name"
+            android:background="@drawable/edittext_orange_border"
+            android:padding="14dp" />
+
+        <!-- Email or Phone -->
+        <EditText
+            android:id="@+id/etEmailPhone"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="12dp"
+            android:hint="Email or Phone Number"
+            android:inputType="textEmailAddress"
+            android:background="@drawable/edittext_orange_border"
+            android:padding="14dp" />
+
+        <!-- Relation with the child -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Relation with the child"
+            android:textColor="#000000"
+            android:textSize="14sp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinnerRelation"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/edittext_orange_border"
+            android:paddingStart="10dp" />
+
+        <!-- School Affected -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="School Affected"
+            android:textColor="#000000"
+            android:textSize="14sp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinnerSchool"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/edittext_orange_border"
+            android:paddingStart="10dp"
+            android:entries="@array/school_names" />
+
+        <!-- Security Label -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Security – Create your password"
+            android:textColor="#000000"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Password -->
+        <EditText
+            android:id="@+id/etPassword"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="6dp"
+            android:hint="Password"
+            android:inputType="textPassword"
+            android:background="@drawable/edittext_orange_border"
+            android:padding="14dp" />
+
+        <!-- Confirm Password -->
+        <EditText
+            android:id="@+id/etConfirmPassword"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="6dp"
+            android:hint="Confirm Password"
+            android:inputType="textPassword"
+            android:background="@drawable/edittext_orange_border"
+            android:padding="14dp" />
+
+        <!-- One Checkbox for both -->
+        <CheckBox
+            android:id="@+id/cbShowPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Show password"
+            android:layout_marginBottom="24dp"
+            android:textColor="#000000" />
+
+        <!-- NEXT Button -->
+        <Button
+            android:id="@+id/btnNext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="NEXT"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#5E17EB"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">Eductrack</string>
+
+    <!-- Welcome / Auth -->
+    <string name="sign_in">Sign in</string>
+    <string name="sign_up">Sign up</string>
+    <string name="welcome_back">Welcome back, you have been missed</string>
+    <string name="username_hint">Username</string>
+    <string name="password_hint">Password</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="dont_have_account">Don’t have an account?</string>
+    <string name="create_account">Create One</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">Dashboard</string>
+    <string name="admin">Admin</string>
+    <string name="teacher">Teacher</string>
+    <string name="parent">Parent</string>
+
+    <!-- Buttons -->
+    <string name="btn_login">Login</string>
+    <string name="btn_logout">Logout</string>
+    <string name="btn_submit">Submit</string>
+    <string name="btn_continue">Continue</string>
+
+    <!-- Toasts / Messages -->
+    <string name="login_success">Login successful</string>
+    <string name="login_failed">Login failed, please try again</string>
+    <string name="fill_all_fields">Please fill in all fields</string>
+
+    <!-- Calendar / Events -->
+    <string name="calendar">School Calendar</string>
+    <string name="view_events">View Events</string>
+
+    <!-- Profile / Settings -->
+    <string name="profile">Profile</string>
+    <string name="settings">Settings</string>
+
+    <!-- Misc -->
+    <string name="loading">Loading...</string>
+    <string name="error_occurred">An error occurred</string>
+
+    <string-array name="school_names">
+        <item>Eden Family School Kacyiru</item>
+        <item>Eden Family School Gisozi</item>
+        <item>Eden Family School Kimisagara</item>
+        <item>Eden Family School Primaire</item>
+    </string-array>
+    <string-array name="relation_with_child_options">
+        <item>Select relationship</item>
+        <item>Mother</item>
+        <item>Father</item>
+        <item>Guardian</item>
+        <item>Aunt</item>
+        <item>Uncle</item>
+        <item>Grandmother</item>
+        <item>Grandfather</item>
+        <item>Other</item>
+    </string-array>
+    <string-array name="nursery_classes">
+        <item>N1 A</item>
+        <item>N1 B</item>
+        <item>N2</item>
+        <item>N3</item>
+    </string-array>
+
+        <string name="title_nursery_registration">Nursery Registration</string>
+        <string name="enter_info">Please enter your information</string>
+        <string name="first_name">First Name</string>
+        <string name="last_name">Last Name</string>
+        <string name="email_or_phone">Email or Phone Number</string>
+        <string name="relation_with_child">Relation with the child</string>
+        <string name="school_affected">School Affected</string>
+        <string name="select_nursery_class">Select Nursery Class(es)</string>
+        <string name="create_password">Create a password</string>
+        <string name="password">Password</string>
+        <string name="confirm_password">Confirm Password</string>
+        <string name="show_password">Show password</string>
+        <string name="register_button">Register Nursery Student</string>
+
+</resources>

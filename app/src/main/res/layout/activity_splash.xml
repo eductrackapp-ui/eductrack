@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/button_purple"
+    android:gravity="center"
+    android:padding="24dp">
+
+    <!-- Texte supérieur -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="WELCOME TO"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:fontFamily="@font/poppins_regular"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="EDUTRACK APP"
+        android:textSize="35sp"
+        android:textStyle="bold"
+        android:textColor="#ffffff"
+        android:fontFamily="@font/poppins_regular"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Logo -->
+    <ImageView
+        android:id="@+id/logo"
+        android:layout_width="136dp"
+        android:layout_height="141dp"
+        android:layout_marginBottom="24dp"
+        android:contentDescription="EduTrack Logo"
+        android:src="@drawable/logon" />
+
+    <!-- Slogan -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Every student counts, every progress is tracked"
+        android:textSize="17sp"
+        android:textColor="#FFA500"
+        android:fontFamily="@font/poppins_regular"
+        android:gravity="center"
+        android:layout_marginTop="16dp"
+        android:textStyle="bold"/>
+</LinearLayout>
