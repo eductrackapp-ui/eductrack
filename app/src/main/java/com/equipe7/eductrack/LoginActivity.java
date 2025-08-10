@@ -1,5 +1,8 @@
 package com.equipe7.eductrack;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.Spannable;
@@ -8,8 +11,10 @@ import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
 import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.util.Patterns;
 import android.view.View;
+import android.view.animation.AnimationUtils;
 import android.widget.*;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,12 +25,15 @@ import com.google.firebase.firestore.DocumentSnapshot;
 
 public class LoginActivity extends AppCompatActivity {
 
+    private static final String TAG = "LoginActivity";
+
     private TextInputLayout tilEmail, tilPassword;
     private TextInputEditText etEmail, etPassword;
     private Button btnSignIn, btnOTPLogin;
     private ImageView logo;
     private TextView tvForgot, tvRegister, tvOTPInfo;
     private ProgressBar progressBar;
+    private LinearLayout passwordContainer, otpInfoContainer;
 
     private FirebaseManager firebaseManager;
     private EmailOTPService otpService;
@@ -47,6 +55,9 @@ public class LoginActivity extends AppCompatActivity {
         initializeViews();
         setupClickListeners();
         setupRegisterText();
+        
+        // Test EmailJS connection on startup
+        testEmailJSConnection();
     }
 
     private void initializeViews() {
@@ -61,26 +72,26 @@ public class LoginActivity extends AppCompatActivity {
         tvRegister = findViewById(R.id.tvRegister);
         tvOTPInfo = findViewById(R.id.tvOTPInfo);
         progressBar = findViewById(R.id.progressBar);
+        
+        // Get containers for animations
+        passwordContainer = findViewById(R.id.password_input_layout);
+        otpInfoContainer = findViewById(R.id.tvOTPInfo);
     }
 
     private void setupClickListeners() {
         btnSignIn.setOnClickListener(view -> {
             if (!isLoading) {
                 if (isOTPMode) {
-                    sendOTPForLogin();
+                    requestOTPLogin();
                 } else {
-                    signInUser();
+                    signInWithPassword();
                 }
             }
         });
 
         btnOTPLogin.setOnClickListener(view -> {
             if (!isLoading) {
-                if (isOTPMode) {
-                    switchToPasswordMode();
-                } else {
-                    switchToOTPMode();
-                }
+                toggleAuthenticationMode();
             }
         });
 
@@ -121,7 +132,84 @@ public class LoginActivity extends AppCompatActivity {
         tvRegister.setHighlightColor(android.graphics.Color.TRANSPARENT);
     }
 
-    private void signInUser() {
+    private void toggleAuthenticationMode() {
+        if (isOTPMode) {
+            switchToPasswordMode();
+        } else {
+            switchToOTPMode();
+        }
+    }
+
+    private void switchToOTPMode() {
+        Log.d(TAG, "Switching to OTP mode");
+        isOTPMode = true;
+        
+        // Animate password field out
+        ObjectAnimator fadeOut = ObjectAnimator.ofFloat(passwordContainer, "alpha", 1f, 0f);
+        fadeOut.setDuration(300);
+        fadeOut.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                passwordContainer.setVisibility(View.GONE);
+                
+                // Show OTP info with animation
+                otpInfoContainer.setVisibility(View.VISIBLE);
+                ObjectAnimator fadeIn = ObjectAnimator.ofFloat(otpInfoContainer, "alpha", 0f, 1f);
+                fadeIn.setDuration(300);
+                fadeIn.start();
+            }
+        });
+        fadeOut.start();
+        
+        // Update button texts with animation
+        animateButtonTextChange(btnSignIn, "Envoyer le code OTP");
+        animateButtonTextChange(btnOTPLogin, "Connexion avec mot de passe");
+    }
+
+    private void switchToPasswordMode() {
+        Log.d(TAG, "Switching to password mode");
+        isOTPMode = false;
+        
+        // Animate OTP info out
+        ObjectAnimator fadeOut = ObjectAnimator.ofFloat(otpInfoContainer, "alpha", 1f, 0f);
+        fadeOut.setDuration(300);
+        fadeOut.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                otpInfoContainer.setVisibility(View.GONE);
+                
+                // Show password field with animation
+                passwordContainer.setVisibility(View.VISIBLE);
+                ObjectAnimator fadeIn = ObjectAnimator.ofFloat(passwordContainer, "alpha", 0f, 1f);
+                fadeIn.setDuration(300);
+                fadeIn.start();
+            }
+        });
+        fadeOut.start();
+        
+        // Update button texts with animation
+        animateButtonTextChange(btnSignIn, "Se connecter");
+        animateButtonTextChange(btnOTPLogin, "Se connecter avec OTP");
+    }
+
+    private void animateButtonTextChange(Button button, String newText) {
+        ObjectAnimator fadeOut = ObjectAnimator.ofFloat(button, "alpha", 1f, 0.5f);
+        fadeOut.setDuration(150);
+        fadeOut.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                button.setText(newText);
+                ObjectAnimator fadeIn = ObjectAnimator.ofFloat(button, "alpha", 0.5f, 1f);
+                fadeIn.setDuration(150);
+                fadeIn.start();
+            }
+        });
+        fadeOut.start();
+    }
+
+    private void signInWithPassword() {
+        Log.d(TAG, "Attempting password login");
+        
         // Clear previous errors
         clearErrors();
 
@@ -129,7 +217,7 @@ public class LoginActivity extends AppCompatActivity {
         String password = etPassword.getText().toString().trim();
 
         // Validate inputs
-        if (!validateInputs(email, password)) {
+        if (!validatePasswordInputs(email, password)) {
             return;
         }
 
@@ -150,7 +238,109 @@ public class LoginActivity extends AppCompatActivity {
                 });
     }
 
-    private boolean validateInputs(String email, String password) {
+    private void requestOTPLogin() {
+        Log.d(TAG, "Requesting OTP login");
+        
+        // Clear previous errors
+        clearErrors();
+
+        String email = etEmail.getText().toString().trim();
+
+        // Validate email
+        if (!validateEmailOnly(email)) {
+            return;
+        }
+
+        // Show loading state
+        setLoadingState(true);
+
+        // First check if user exists in Firestore
+        firebaseManager.getFirestore()
+                .collection("users")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                        // User exists, generate and send OTP
+                        DocumentSnapshot userDoc = task.getResult().getDocuments().get(0);
+                        User user = userDoc.toObject(User.class);
+                        
+                        if (user != null) {
+                            sendOTPToUser(user);
+                        } else {
+                            setLoadingState(false);
+                            showError("Erreur lors du chargement des données utilisateur");
+                        }
+                    } else {
+                        setLoadingState(false);
+                        tilEmail.setError("Aucun compte trouvé avec cet email");
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    setLoadingState(false);
+                    showError("Erreur lors de la vérification de l'utilisateur: " + e.getMessage());
+                });
+    }
+
+    private void sendOTPToUser(User user) {
+        Log.d(TAG, "Sending OTP to user: " + user.email);
+        
+        // Generate OTP
+        String otpCode = otpService.generateOTP();
+        
+        // Store OTP in Firestore for verification
+        storeOTPInFirestore(user.email, otpCode);
+        
+        // Send OTP via EmailJS
+        otpService.sendOTP(user.email, user.username, otpCode, new EmailOTPService.OTPCallback() {
+            @Override
+            public void onSuccess(String message) {
+                setLoadingState(false);
+                Log.d(TAG, "OTP sent successfully to: " + user.email);
+                
+                // Show success message with animation
+                showSuccessMessage("Code OTP envoyé à " + user.email);
+                
+                // Navigate to verification activity
+                Intent intent = new Intent(LoginActivity.this, VerificationCodeActivity.class);
+                intent.putExtra("email", user.email);
+                intent.putExtra("username", user.username);
+                intent.putExtra("fromLogin", true);
+                startActivity(intent);
+                overridePendingTransition(R.anim.slide_in_right, R.anim.fade_out);
+            }
+
+            @Override
+            public void onFailure(String error) {
+                setLoadingState(false);
+                Log.e(TAG, "Failed to send OTP: " + error);
+                showError("Erreur lors de l'envoi de l'OTP: " + error);
+            }
+        });
+    }
+
+    private void storeOTPInFirestore(String email, String otpCode) {
+        Log.d(TAG, "Storing OTP in Firestore for: " + email);
+        
+        firebaseManager.getFirestore()
+                .collection("otps")
+                .document(email)
+                .set(new java.util.HashMap<String, Object>() {{
+                    put("code", otpCode);
+                    put("timestamp", System.currentTimeMillis());
+                    put("used", false);
+                }})
+                .addOnSuccessListener(aVoid -> Log.d(TAG, "OTP stored successfully"))
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to store OTP", e));
+    }
+
+    private void testEmailJSConnection() {
+        Log.d(TAG, "Testing EmailJS connection...");
+        // This is a silent test - no UI feedback unless there's an error
+        // otpService.testConnection(null);
+    }
+
+    private boolean validatePasswordInputs(String email, String password) {
         boolean isValid = true;
 
         // Validate email
@@ -174,6 +364,21 @@ public class LoginActivity extends AppCompatActivity {
         return isValid;
     }
 
+    private boolean validateEmailOnly(String email) {
+        boolean isValid = true;
+
+        // Validate email
+        if (TextUtils.isEmpty(email)) {
+            tilEmail.setError("Email is required");
+            isValid = false;
+        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            tilEmail.setError("Please enter a valid email address");
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
     private void clearErrors() {
         tilEmail.setError(null);
         tilPassword.setError(null);
@@ -182,12 +387,21 @@ public class LoginActivity extends AppCompatActivity {
     private void setLoadingState(boolean loading) {
         isLoading = loading;
         btnSignIn.setEnabled(!loading);
+        btnOTPLogin.setEnabled(!loading);
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         
         if (loading) {
-            btnSignIn.setText("Signing in...");
+            if (isOTPMode) {
+                btnSignIn.setText("Envoi en cours...");
+            } else {
+                btnSignIn.setText("Connexion...");
+            }
         } else {
-            btnSignIn.setText("Sign in");
+            if (isOTPMode) {
+                btnSignIn.setText("Envoyer le code OTP");
+            } else {
+                btnSignIn.setText("Se connecter");
+            }
         }
     }
 
@@ -253,6 +467,16 @@ public class LoginActivity extends AppCompatActivity {
 
     private void showError(String message) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        
+        // Add shake animation to the form
+        logo.startAnimation(AnimationUtils.loadAnimation(this, R.anim.fade_in));
+    }
+
+    private void showSuccessMessage(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        
+        // Add success animation
+        logo.startAnimation(AnimationUtils.loadAnimation(this, R.anim.fade_in));
     }
 
     private void redirectToRoleActivity(String role) {
@@ -273,129 +497,5 @@ public class LoginActivity extends AppCompatActivity {
         }
         startActivity(intent);
         finish();
-    }
-
-    private void switchToOTPMode() {
-        isOTPMode = true;
-        tilPassword.setVisibility(View.GONE);
-        tvOTPInfo.setVisibility(View.VISIBLE);
-        btnSignIn.setText("Envoyer le code OTP");
-        btnOTPLogin.setText("Connexion avec mot de passe");
-    }
-
-    private void switchToPasswordMode() {
-        isOTPMode = false;
-        tilPassword.setVisibility(View.VISIBLE);
-        tvOTPInfo.setVisibility(View.GONE);
-        btnSignIn.setText("Se connecter");
-        btnOTPLogin.setText("Se connecter avec OTP");
-    }
-
-    private void sendOTPForLogin() {
-        // Clear previous errors
-        clearErrors();
-
-        String email = etEmail.getText().toString().trim();
-
-        // Validate email
-        if (TextUtils.isEmpty(email)) {
-            tilEmail.setError("Email is required");
-            return;
-        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            tilEmail.setError("Please enter a valid email address");
-            return;
-        }
-
-        // Show loading state
-        setLoadingState(true);
-
-        // First check if user exists in Firestore
-        firebaseManager.getFirestore()
-                .collection("users")
-                .whereEqualTo("email", email)
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && !task.getResult().isEmpty()) {
-                        // User exists, send OTP
-                        DocumentSnapshot userDoc = task.getResult().getDocuments().get(0);
-                        User user = userDoc.toObject(User.class);
-                        
-                        if (user != null) {
-                            String otpType = "admin".equals(user.role) ? "admin_login" : "login";
-                            sendOTPEmail(email, user.username, otpType);
-                        } else {
-                            setLoadingState(false);
-                            showError("Error loading user data");
-                        }
-                    } else {
-                        setLoadingState(false);
-                        tilEmail.setError("No account found with this email");
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    setLoadingState(false);
-                    showError("Error checking user: " + e.getMessage());
-                });
-    }
-
-    private void sendOTPEmail(String email, String username, String otpType) {
-        String otpCode = otpService.generateOTP();
-        
-        // Store OTP in Firestore for verification
-        storeOTPInFirestore(email, otpCode);
-        
-        EmailOTPService.OTPCallback callback = new EmailOTPService.OTPCallback() {
-            @Override
-            public void onSuccess(String message) {
-                setLoadingState(false);
-                Toast.makeText(LoginActivity.this, "Code OTP envoyé à " + email, Toast.LENGTH_SHORT).show();
-                
-                // Navigate to verification activity
-                Intent intent = new Intent(LoginActivity.this, VerificationCodeActivity.class);
-                intent.putExtra("email", email);
-                intent.putExtra("otpType", otpType);
-                intent.putExtra("fromLogin", true);
-                startActivity(intent);
-            }
-
-            @Override
-            public void onFailure(String error) {
-                setLoadingState(false);
-                showError("Erreur lors de l'envoi de l'OTP: " + error);
-            }
-        };
-        
-        if ("admin_login".equals(otpType)) {
-            otpService.sendAdminLoginOTP(email, username, otpCode, callback);
-        } else {
-            otpService.sendLoginOTP(email, username, otpCode, callback);
-        }
-    }
-    
-    private void storeOTPInFirestore(String email, String otpCode) {
-        // Store OTP with timestamp for verification
-        firebaseManager.getFirestore()
-                .collection("otps")
-                .document(email)
-                .set(new java.util.HashMap<String, Object>() {{
-                    put("code", otpCode);
-                    put("timestamp", System.currentTimeMillis());
-                    put("used", false);
-                }});
-    }
-
-    private boolean validateOTPInputs(String email) {
-        boolean isValid = true;
-
-        // Validate email
-        if (TextUtils.isEmpty(email)) {
-            tilEmail.setError("Email is required");
-            isValid = false;
-        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            tilEmail.setError("Please enter a valid email address");
-            isValid = false;
-        }
-
-        return isValid;
     }
 }

@@ -1,12 +1,15 @@
 package com.equipe7.eductrack;
 
+import android.animation.ObjectAnimator;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
@@ -19,13 +22,15 @@ import com.google.firebase.firestore.DocumentSnapshot;
 
 public class VerificationCodeActivity extends AppCompatActivity {
 
+    private static final String TAG = "VerificationCodeActivity";
+
     private EditText[] otpEditTexts;
     private Button btnVerify, btnResendCode;
     private TextView tvTimer, tvEmailAddress, tvTitle;
     private ProgressBar progressBar;
 
     private String email;
-    private String otpType;
+    private String username;
     private boolean fromLogin;
     private CountDownTimer countDownTimer;
     private boolean isTimerRunning = false;
@@ -44,13 +49,18 @@ public class VerificationCodeActivity extends AppCompatActivity {
 
         // Get data from intent
         email = getIntent().getStringExtra("email");
-        otpType = getIntent().getStringExtra("otpType");
+        username = getIntent().getStringExtra("username");
         fromLogin = getIntent().getBooleanExtra("fromLogin", false);
+
+        Log.d(TAG, "Starting verification for email: " + email + ", fromLogin: " + fromLogin);
 
         initializeViews();
         setupOTPInputs();
         setupClickListeners();
         startTimer();
+        
+        // Add entrance animation
+        addEntranceAnimation();
     }
 
     private void initializeViews() {
@@ -82,6 +92,35 @@ public class VerificationCodeActivity extends AppCompatActivity {
         }
     }
 
+    private void addEntranceAnimation() {
+        // Animate title
+        tvTitle.setAlpha(0f);
+        tvTitle.animate().alpha(1f).setDuration(500).start();
+        
+        // Animate email text
+        tvEmailAddress.setAlpha(0f);
+        tvEmailAddress.animate().alpha(1f).setDuration(500).setStartDelay(200).start();
+        
+        // Animate OTP fields with stagger
+        for (int i = 0; i < otpEditTexts.length; i++) {
+            otpEditTexts[i].setAlpha(0f);
+            otpEditTexts[i].setTranslationY(50f);
+            otpEditTexts[i].animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(400)
+                    .setStartDelay(300 + (i * 50))
+                    .start();
+        }
+        
+        // Animate buttons
+        btnVerify.setAlpha(0f);
+        btnVerify.animate().alpha(1f).setDuration(500).setStartDelay(800).start();
+        
+        btnResendCode.setAlpha(0f);
+        btnResendCode.animate().alpha(1f).setDuration(500).setStartDelay(900).start();
+    }
+
     private void setupOTPInputs() {
         for (int i = 0; i < otpEditTexts.length; i++) {
             final int index = i;
@@ -93,6 +132,9 @@ public class VerificationCodeActivity extends AppCompatActivity {
                 @Override
                 public void onTextChanged(CharSequence s, int start, int before, int count) {
                     if (s.length() == 1) {
+                        // Add input animation
+                        animateFieldInput(otpEditTexts[index]);
+                        
                         // Move to next field
                         if (index < otpEditTexts.length - 1) {
                             otpEditTexts[index + 1].requestFocus();
@@ -125,6 +167,15 @@ public class VerificationCodeActivity extends AppCompatActivity {
         }
     }
 
+    private void animateFieldInput(EditText field) {
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(field, "scaleX", 1f, 1.1f, 1f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(field, "scaleY", 1f, 1.1f, 1f);
+        scaleX.setDuration(200);
+        scaleY.setDuration(200);
+        scaleX.start();
+        scaleY.start();
+    }
+
     private void setupClickListeners() {
         btnVerify.setOnClickListener(v -> {
             if (!isLoading) {
@@ -137,11 +188,6 @@ public class VerificationCodeActivity extends AppCompatActivity {
                 resendOTP();
             }
         });
-
-        // Back button - remove this if btnBack doesn't exist in layout
-        // findViewById(R.id.btnBack).setOnClickListener(v -> {
-        //     finish();
-        // });
     }
 
     private void checkAllFieldsFilled() {
@@ -154,14 +200,25 @@ public class VerificationCodeActivity extends AppCompatActivity {
         }
         
         btnVerify.setEnabled(allFilled);
-        btnVerify.setAlpha(allFilled ? 1.0f : 0.5f);
+        
+        // Animate button state change
+        if (allFilled) {
+            btnVerify.animate().alpha(1.0f).scaleX(1.05f).scaleY(1.05f).setDuration(200)
+                    .withEndAction(() -> btnVerify.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
+                    .start();
+        } else {
+            btnVerify.animate().alpha(0.5f).setDuration(200).start();
+        }
     }
 
     private void verifyOTP() {
         String code = getOTPCode();
         
+        Log.d(TAG, "Verifying OTP code: " + code);
+        
         if (code.length() != 6) {
-            Toast.makeText(this, "Veuillez entrer le code de vérification complet", Toast.LENGTH_SHORT).show();
+            showError("Veuillez entrer le code de vérification complet");
+            shakeOTPFields();
             return;
         }
 
@@ -171,7 +228,90 @@ public class VerificationCodeActivity extends AppCompatActivity {
         verifyOTPFromFirestore(email, code);
     }
 
+    private void verifyOTPFromFirestore(String email, String code) {
+        Log.d(TAG, "Verifying OTP from Firestore for email: " + email);
+        
+        firebaseManager.getFirestore()
+                .collection("otps")
+                .document(email)
+                .get()
+                .addOnCompleteListener(task -> {
+                    setLoadingState(false);
+                    
+                    if (task.isSuccessful() && task.getResult().exists()) {
+                        String storedCode = task.getResult().getString("code");
+                        Long timestamp = task.getResult().getLong("timestamp");
+                        Boolean used = task.getResult().getBoolean("used");
+                        
+                        Log.d(TAG, "Retrieved OTP data - stored: " + storedCode + ", timestamp: " + timestamp + ", used: " + used);
+                        
+                        if (storedCode != null && storedCode.equals(code)) {
+                            if (used != null && used) {
+                                handleVerificationError("Ce code a déjà été utilisé");
+                                return;
+                            }
+                            
+                            if (timestamp != null && otpService.isOTPExpired(timestamp)) {
+                                handleVerificationError("Le code a expiré");
+                                return;
+                            }
+                            
+                            // Mark OTP as used
+                            task.getResult().getReference().update("used", true);
+                            
+                            // Success animation
+                            animateSuccess();
+                            
+                            if (fromLogin) {
+                                handleLoginSuccess();
+                            } else {
+                                Toast.makeText(this, "Code vérifié avec succès!", Toast.LENGTH_SHORT).show();
+                                finish();
+                            }
+                        } else {
+                            Log.e(TAG, "OTP mismatch - entered: " + code + ", stored: " + storedCode);
+                            handleVerificationError("Code incorrect");
+                        }
+                    } else {
+                        Log.e(TAG, "OTP document not found or task failed");
+                        handleVerificationError("Code non trouvé ou expiré");
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    setLoadingState(false);
+                    Log.e(TAG, "Firestore error during OTP verification", e);
+                    handleVerificationError("Erreur de vérification: " + e.getMessage());
+                });
+    }
+
+    private void animateSuccess() {
+        // Green flash animation for success
+        for (EditText field : otpEditTexts) {
+            field.setBackgroundColor(getResources().getColor(android.R.color.holo_green_light));
+            field.animate().alpha(0.7f).setDuration(200)
+                    .withEndAction(() -> {
+                        field.setBackgroundResource(R.drawable.otp_digit_background);
+                        field.animate().alpha(1f).setDuration(200).start();
+                    }).start();
+        }
+    }
+
+    private void shakeOTPFields() {
+        for (EditText field : otpEditTexts) {
+            field.startAnimation(AnimationUtils.loadAnimation(this, R.anim.fade_in));
+            // Add red flash for error
+            field.setBackgroundColor(getResources().getColor(android.R.color.holo_red_light));
+            field.animate().alpha(0.7f).setDuration(200)
+                    .withEndAction(() -> {
+                        field.setBackgroundResource(R.drawable.otp_digit_background);
+                        field.animate().alpha(1f).setDuration(200).start();
+                    }).start();
+        }
+    }
+
     private void handleLoginSuccess() {
+        Log.d(TAG, "OTP verification successful, proceeding with login");
+        
         // Get user data and sign them in
         firebaseManager.getFirestore()
                 .collection("users")
@@ -183,8 +323,9 @@ public class VerificationCodeActivity extends AppCompatActivity {
                         User user = userDoc.toObject(User.class);
                         
                         if (user != null) {
-                            // Sign in the user with Firebase Auth
-                            signInUserWithFirebase(user);
+                            Log.d(TAG, "User data retrieved, signing in: " + user.email);
+                            // For OTP login, we'll use a simplified approach
+                            proceedToUserHome(user);
                         } else {
                             showError("Erreur lors du chargement des données utilisateur");
                         }
@@ -193,32 +334,8 @@ public class VerificationCodeActivity extends AppCompatActivity {
                     }
                 })
                 .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error retrieving user data", e);
                     showError("Erreur lors de la vérification: " + e.getMessage());
-                });
-    }
-
-    private void signInUserWithFirebase(User user) {
-        // For OTP login, we'll create a temporary password and sign in
-        // In a production app, you might want to use custom tokens instead
-        String tempPassword = "temp_" + System.currentTimeMillis();
-        
-        // First try to sign in (user might already exist in Firebase Auth)
-        firebaseManager.getAuth().signInWithEmailAndPassword(email, tempPassword)
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        // User signed in successfully
-                        proceedToUserHome(user);
-                    } else {
-                        // User doesn't exist in Firebase Auth, create account
-                        firebaseManager.getAuth().createUserWithEmailAndPassword(email, tempPassword)
-                                .addOnCompleteListener(createTask -> {
-                                    if (createTask.isSuccessful()) {
-                                        proceedToUserHome(user);
-                                    } else {
-                                        showError("Erreur lors de la connexion: " + createTask.getException().getMessage());
-                                    }
-                                });
-                    }
                 });
     }
 
@@ -252,46 +369,26 @@ public class VerificationCodeActivity extends AppCompatActivity {
         
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
+        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
         finish();
     }
 
     private void resendOTP() {
+        Log.d(TAG, "Resending OTP to: " + email);
         setLoadingState(true);
         
-        // Get user data to determine OTP type
-        firebaseManager.getFirestore()
-                .collection("users")
-                .whereEqualTo("email", email)
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && !task.getResult().isEmpty()) {
-                        DocumentSnapshot userDoc = task.getResult().getDocuments().get(0);
-                        User user = userDoc.toObject(User.class);
-                        
-                        if (user != null) {
-                            String currentOtpType = "admin".equals(user.role) ? "admin_login" : "login";
-                            sendNewOTP(user.username, currentOtpType);
-                        } else {
-                            setLoadingState(false);
-                            showError("Erreur lors du chargement des données utilisateur");
-                        }
-                    } else {
-                        setLoadingState(false);
-                        showError("Utilisateur non trouvé");
-                    }
-                });
-    }
-
-    private void sendNewOTP(String username, String currentOtpType) {
-        String otpCode = otpService.generateOTP();
+        // Generate new OTP
+        String newOtpCode = otpService.generateOTP();
         
         // Store new OTP in Firestore
-        storeOTPInFirestore(email, otpCode);
+        storeOTPInFirestore(email, newOtpCode);
         
-        EmailOTPService.OTPCallback callback = new EmailOTPService.OTPCallback() {
+        // Send new OTP via EmailJS
+        otpService.sendOTP(email, username, newOtpCode, new EmailOTPService.OTPCallback() {
             @Override
             public void onSuccess(String message) {
                 setLoadingState(false);
+                Log.d(TAG, "New OTP sent successfully");
                 Toast.makeText(VerificationCodeActivity.this, "Nouveau code envoyé!", Toast.LENGTH_SHORT).show();
                 clearOTPFields();
                 startTimer();
@@ -300,63 +397,12 @@ public class VerificationCodeActivity extends AppCompatActivity {
             @Override
             public void onFailure(String error) {
                 setLoadingState(false);
+                Log.e(TAG, "Failed to send new OTP: " + error);
                 showError("Erreur lors de l'envoi: " + error);
             }
-        };
-        
-        if ("admin_login".equals(currentOtpType)) {
-            otpService.sendAdminLoginOTP(email, username, otpCode, callback);
-        } else {
-            otpService.sendLoginOTP(email, username, otpCode, callback);
-        }
+        });
     }
-    
-    private void verifyOTPFromFirestore(String email, String code) {
-        firebaseManager.getFirestore()
-                .collection("otps")
-                .document(email)
-                .get()
-                .addOnCompleteListener(task -> {
-                    setLoadingState(false);
-                    
-                    if (task.isSuccessful() && task.getResult().exists()) {
-                        String storedCode = task.getResult().getString("code");
-                        Long timestamp = task.getResult().getLong("timestamp");
-                        Boolean used = task.getResult().getBoolean("used");
-                        
-                        if (storedCode != null && storedCode.equals(code)) {
-                            if (used != null && used) {
-                                handleVerificationError("Ce code a déjà été utilisé");
-                                return;
-                            }
-                            
-                            if (timestamp != null && otpService.isOTPExpired(timestamp)) {
-                                handleVerificationError("Le code a expiré");
-                                return;
-                            }
-                            
-                            // Mark OTP as used
-                            task.getResult().getReference().update("used", true);
-                            
-                            if (fromLogin) {
-                                handleLoginSuccess();
-                            } else {
-                                Toast.makeText(this, "Code vérifié avec succès!", Toast.LENGTH_SHORT).show();
-                                finish();
-                            }
-                        } else {
-                            handleVerificationError("Code incorrect");
-                        }
-                    } else {
-                        handleVerificationError("Code non trouvé ou expiré");
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    setLoadingState(false);
-                    handleVerificationError("Erreur de vérification: " + e.getMessage());
-                });
-    }
-    
+
     private void storeOTPInFirestore(String email, String otpCode) {
         firebaseManager.getFirestore()
                 .collection("otps")
@@ -365,7 +411,9 @@ public class VerificationCodeActivity extends AppCompatActivity {
                     put("code", otpCode);
                     put("timestamp", System.currentTimeMillis());
                     put("used", false);
-                }});
+                }})
+                .addOnSuccessListener(aVoid -> Log.d(TAG, "New OTP stored successfully"))
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to store new OTP", e));
     }
 
     private String getOTPCode() {
@@ -412,6 +460,7 @@ public class VerificationCodeActivity extends AppCompatActivity {
         if (error != null) {
             if (error.contains("invalid") || error.contains("incorrect")) {
                 errorMessage = "Code de vérification invalide. Veuillez réessayer.";
+                shakeOTPFields();
                 clearOTPFields();
             } else if (error.contains("expired")) {
                 errorMessage = "Le code de vérification a expiré. Veuillez en demander un nouveau.";
@@ -420,7 +469,7 @@ public class VerificationCodeActivity extends AppCompatActivity {
             }
         }
         
-        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
+        showError(errorMessage);
     }
 
     private void showError(String message) {
@@ -443,7 +492,7 @@ public class VerificationCodeActivity extends AppCompatActivity {
             public void onFinish() {
                 isTimerRunning = false;
                 btnResendCode.setEnabled(true);
-                btnResendCode.setAlpha(1.0f);
+                btnResendCode.animate().alpha(1.0f).setDuration(300).start();
                 tvTimer.setText("Vous n'avez pas reçu le code ?");
             }
         }.start();

@@ -73,25 +73,62 @@ public class ActivityParentRegister extends AppCompatActivity {
         String confirmPassword = etConfirmPassword.getText().toString();
 
         // Validation
-        if (TextUtils.isEmpty(firstName) || TextUtils.isEmpty(lastName) || TextUtils.isEmpty(emailPhone)
-                || TextUtils.isEmpty(relation) || TextUtils.isEmpty(school)
-                || TextUtils.isEmpty(password) || TextUtils.isEmpty(confirmPassword)) {
-            showToast("Please fill in all fields");
+        if (TextUtils.isEmpty(firstName)) {
+            showToast("Please enter your first name");
+            etFirstName.requestFocus();
+            return;
+        }
+
+        if (TextUtils.isEmpty(lastName)) {
+            showToast("Please enter your last name");
+            etLastName.requestFocus();
+            return;
+        }
+
+        if (TextUtils.isEmpty(emailPhone)) {
+            showToast("Please enter your email address");
+            etEmailPhone.requestFocus();
             return;
         }
 
         if (!Patterns.EMAIL_ADDRESS.matcher(emailPhone).matches()) {
             showToast("Please enter a valid email address");
+            etEmailPhone.requestFocus();
+            return;
+        }
+
+        // Check if relationship is selected (not the default "Select relationship")
+        if (TextUtils.isEmpty(relation) || relation.equals("Select relationship")) {
+            showToast("Please select your relationship with the child");
+            return;
+        }
+
+        if (TextUtils.isEmpty(school)) {
+            showToast("Please select a school");
+            return;
+        }
+
+        if (TextUtils.isEmpty(password)) {
+            showToast("Please enter a password");
+            etPassword.requestFocus();
             return;
         }
 
         if (password.length() < 6) {
             showToast("Password must be at least 6 characters");
+            etPassword.requestFocus();
+            return;
+        }
+
+        if (TextUtils.isEmpty(confirmPassword)) {
+            showToast("Please confirm your password");
+            etConfirmPassword.requestFocus();
             return;
         }
 
         if (!password.equals(confirmPassword)) {
             showToast("Passwords do not match");
+            etConfirmPassword.requestFocus();
             return;
         }
 
