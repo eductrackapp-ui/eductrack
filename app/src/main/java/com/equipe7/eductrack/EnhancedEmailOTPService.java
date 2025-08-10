@@ -7,21 +7,23 @@ import android.util.Log;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.mail.Authenticator;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 /**
  * Enhanced Email OTP Service using JavaMail API and Firestore
@@ -233,52 +235,74 @@ public class EnhancedEmailOTPService {
     }
     
     /**
-     * Send email asynchronously using JavaMail
+     * Send email asynchronously using EmailJS API (more reliable than direct SMTP on Android)
      */
     private void sendEmailAsync(String toEmail, String userName, String otpCode, OTPCallback callback) {
         executorService.execute(() -> {
             try {
-                // Validate email configuration
-                if (!EmailConfig.isConfigurationValid()) {
-                    mainHandler.post(() -> callback.onFailure("Configuration email invalide"));
-                    return;
-                }
+                // Create EmailJS payload
+                JSONObject emailData = new JSONObject();
+                emailData.put("service_id", "service_yvl11d5");
+                emailData.put("template_id", "template_zlp263e");
+                emailData.put("user_id", "Un7snKzeE4AGeorc-");
+                emailData.put("accessToken", "IL07jpzJG6LR1S32IfFJy");
                 
-                // Setup mail properties
-                Properties props = new Properties();
-                props.put("mail.smtp.host", EmailConfig.SMTP_HOST);
-                props.put("mail.smtp.port", EmailConfig.SMTP_PORT);
-                props.put("mail.smtp.auth", EmailConfig.SMTP_AUTH);
-                props.put("mail.smtp.starttls.enable", EmailConfig.SMTP_STARTTLS);
-                props.put("mail.smtp.ssl.trust", EmailConfig.SMTP_HOST);
+                // Template parameters
+                JSONObject templateParams = new JSONObject();
+                templateParams.put("to_email", toEmail);
+                templateParams.put("to_name", userName != null ? userName : "User");
+                templateParams.put("verification_code", otpCode);
+                templateParams.put("subject", EmailConfig.EMAIL_SUBJECT);
+                templateParams.put("message", EmailConfig.formatEmailTemplate(userName, otpCode));
                 
-                // Create session with authentication
-                Session session = Session.getInstance(props, new Authenticator() {
+                emailData.put("template_params", templateParams);
+                
+                // Create HTTP request
+                RequestBody body = RequestBody.create(
+                        emailData.toString(),
+                        MediaType.get("application/json; charset=utf-8")
+                );
+                
+                Request request = new Request.Builder()
+                        .url("https://api.emailjs.com/api/v1.0/email/send")
+                        .post(body)
+                        .addHeader("Content-Type", "application/json")
+                        .addHeader("User-Agent", "EduTrack-Android/1.0")
+                        .build();
+                
+                // Send async request
+                OkHttpClient client = new OkHttpClient();
+                client.newCall(request).enqueue(new Callback() {
                     @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(
-                                EmailConfig.getEmailUsername(),
-                                EmailConfig.getEmailPassword()
-                        );
+                    public void onFailure(Call call, IOException e) {
+                        Log.e(TAG, "Network failure sending email", e);
+                        mainHandler.post(() -> callback.onFailure("Erreur réseau: " + e.getMessage()));
+                    }
+                    
+                    @Override
+                    public void onResponse(Call call, Response response) throws IOException {
+                        final String responseBody = response.body() != null ? response.body().string() : "";
+                        
+                        Log.d(TAG, "EmailJS Response Code: " + response.code());
+                        Log.d(TAG, "EmailJS Response Body: " + responseBody);
+                        
+                        mainHandler.post(() -> {
+                            if (response.isSuccessful()) {
+                                Log.d(TAG, "Email sent successfully to: " + toEmail);
+                                callback.onSuccess("Code envoyé avec succès");
+                            } else {
+                                Log.e(TAG, "EmailJS API Error: " + response.code() + " - " + responseBody);
+                                callback.onFailure("Erreur d'envoi: " + response.code());
+                            }
+                        });
+                        
+                        response.close();
                     }
                 });
                 
-                // Create message
-                MimeMessage message = new MimeMessage(session);
-                message.setFrom(new InternetAddress(EmailConfig.getEmailUsername(), "EduTrack"));
-                message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
-                message.setSubject(EmailConfig.EMAIL_SUBJECT);
-                message.setContent(EmailConfig.formatEmailTemplate(userName, otpCode), "text/html; charset=utf-8");
-                
-                // Send email
-                Transport.send(message);
-                
-                Log.d(TAG, "Email sent successfully to: " + toEmail);
-                mainHandler.post(() -> callback.onSuccess("Code envoyé avec succès"));
-                
-            } catch (MessagingException e) {
-                Log.e(TAG, "Failed to send email", e);
-                mainHandler.post(() -> callback.onFailure("Erreur d'envoi: " + e.getMessage()));
+            } catch (JSONException e) {
+                Log.e(TAG, "Error creating email payload", e);
+                mainHandler.post(() -> callback.onFailure("Erreur de configuration: " + e.getMessage()));
             } catch (Exception e) {
                 Log.e(TAG, "Unexpected error sending email", e);
                 mainHandler.post(() -> callback.onFailure("Erreur inattendue: " + e.getMessage()));
