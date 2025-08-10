@@ -113,10 +113,12 @@ public class EmailOTPService {
                 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
-                    String responseBody = "";
+                    final String responseBody;
                     try {
                         if (response.body() != null) {
                             responseBody = response.body().string();
+                        } else {
+                            responseBody = "";
                         }
                         
                         Log.d(TAG, "EmailJS Response Code: " + response.code());
