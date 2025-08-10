@@ -54,8 +54,12 @@ dependencies {
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-analytics") // Optional: for analytics
 
-    // ✅ EmailJS
+    // ✅ HTTP Client (keeping for other potential uses)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // ✅ JavaMail API for reliable email sending
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

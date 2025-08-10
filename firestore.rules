@@ -1,9 +1,88 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to all authenticated users
+    
+    // Users collection - authenticated users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow reading user data by email for login verification
+      allow read: if request.auth != null && resource.data.email == request.auth.token.email;
+    }
+    
+    // OTP collection - special rules for OTP verification system
+    match /otps/{email} {
+      // Allow creating/updating OTP documents (for sending OTPs)
+      allow create, update: if request.auth == null &&
+                              isValidEmail(email) &&
+                              isValidOTPData(request.resource.data);
+      
+      // Allow reading OTP documents for verification (unauthenticated users during login)
+      allow read: if request.auth == null &&
+                     isValidEmail(email);
+      
+      // Allow authenticated users to read/update their own OTP
+      allow read, update: if request.auth != null &&
+                            request.auth.token.email == email;
+      
+      // Allow deletion of expired OTPs (cleanup)
+      allow delete: if request.auth == null &&
+                       resource.data.expiresAt < request.time.toMillis();
+    }
+    
+    // Rate limiting collection - for preventing spam
+    match /rate_limits/{email} {
+      // Allow creating/updating rate limit records
+      allow create, update: if request.auth == null &&
+                              isValidEmail(email) &&
+                              isValidRateLimitData(request.resource.data);
+      
+      // Allow reading rate limit data for checking
+      allow read: if request.auth == null &&
+                     isValidEmail(email);
+      
+      // Allow cleanup of old rate limit records
+      allow delete: if request.auth == null &&
+                       resource.data.lastRequest < (request.time.toMillis() - 3600000); // 1 hour old
+    }
+    
+    // Admin-only collections
+    match /admin/{document=**} {
+      allow read, write: if request.auth != null &&
+                           request.auth.token.role == 'admin';
+    }
+    
+    // Default deny all other access
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
-} 
+  
+  // Helper functions for validation
+  function isValidEmail(email) {
+    return email is string &&
+           email.matches('.*@.*\\..*') &&
+           email.size() > 5 &&
+           email.size() < 100;
+  }
+  
+  function isValidOTPData(data) {
+    return data.keys().hasAll(['code', 'timestamp', 'used', 'email', 'expiresAt']) &&
+           data.code is string &&
+           data.code.matches('\\d{6}') &&
+           data.timestamp is number &&
+           data.used is bool &&
+           data.email is string &&
+           data.expiresAt is number &&
+           data.expiresAt > data.timestamp &&
+           (data.expiresAt - data.timestamp) <= 300000; // Max 5 minutes
+  }
+  
+  function isValidRateLimitData(data) {
+    return data.keys().hasAll(['email', 'lastRequest', 'attempts']) &&
+           data.email is string &&
+           data.lastRequest is number &&
+           data.attempts is number &&
+           data.attempts >= 0 &&
+           data.attempts <= 10; // Max 10 attempts
+  }
+}

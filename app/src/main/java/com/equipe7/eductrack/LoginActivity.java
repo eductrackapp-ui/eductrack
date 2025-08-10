@@ -36,7 +36,7 @@ public class LoginActivity extends AppCompatActivity {
     private LinearLayout passwordContainer, otpInfoContainer;
 
     private FirebaseManager firebaseManager;
-    private EmailOTPService otpService;
+    private EnhancedEmailOTPService enhancedOtpService;
     private boolean isLoading = false;
     private boolean isOTPMode = false;
 
@@ -48,8 +48,8 @@ public class LoginActivity extends AppCompatActivity {
         // Initialize Firebase Manager
         firebaseManager = FirebaseManager.getInstance();
         
-        // Initialize OTP Service
-        otpService = new EmailOTPService(this);
+        // Initialize Enhanced OTP Service
+        enhancedOtpService = new EnhancedEmailOTPService(this);
 
         // Initialize UI elements
         initializeViews();
@@ -285,14 +285,8 @@ public class LoginActivity extends AppCompatActivity {
     private void sendOTPToUser(User user) {
         Log.d(TAG, "Sending OTP to user: " + user.email);
         
-        // Generate OTP
-        String otpCode = otpService.generateOTP();
-        
-        // Store OTP in Firestore for verification
-        storeOTPInFirestore(user.email, otpCode);
-        
-        // Send OTP via EmailJS
-        otpService.sendOTP(user.email, user.username, otpCode, new EmailOTPService.OTPCallback() {
+        // Send OTP using enhanced service
+        enhancedOtpService.sendOTP(user.email, user.username, new EnhancedEmailOTPService.OTPCallback() {
             @Override
             public void onSuccess(String message) {
                 setLoadingState(false);
@@ -319,25 +313,11 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-    private void storeOTPInFirestore(String email, String otpCode) {
-        Log.d(TAG, "Storing OTP in Firestore for: " + email);
-        
-        firebaseManager.getFirestore()
-                .collection("otps")
-                .document(email)
-                .set(new java.util.HashMap<String, Object>() {{
-                    put("code", otpCode);
-                    put("timestamp", System.currentTimeMillis());
-                    put("used", false);
-                }})
-                .addOnSuccessListener(aVoid -> Log.d(TAG, "OTP stored successfully"))
-                .addOnFailureListener(e -> Log.e(TAG, "Failed to store OTP", e));
-    }
 
     private void testEmailJSConnection() {
         Log.d(TAG, "Testing EmailJS connection...");
-        // This is a silent test - no UI feedback unless there's an error
-        // otpService.testConnection(null);
+        // Cleanup expired OTPs periodically
+        enhancedOtpService.cleanupExpiredOTPs();
     }
 
     private boolean validatePasswordInputs(String email, String password) {
