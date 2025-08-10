@@ -159,7 +159,7 @@
                     android:id="@+id/btnSignIn"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="12dp"
                     android:backgroundTint="#5E17EB"
                     android:fontFamily="@font/poppins"
                     android:text="Se connecter"
@@ -168,6 +168,45 @@
                     android:textStyle="bold"
                     app:cornerRadius="12dp"
                     app:elevation="4dp" />
+
+                <!-- OTP Login button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnOTPLogin"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginBottom="8dp"
+                    android:backgroundTint="@android:color/transparent"
+                    android:fontFamily="@font/poppins"
+                    android:text="Se connecter avec OTP"
+                    android:textColor="#5E17EB"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="#5E17EB"
+                    app:strokeWidth="2dp" />
+
+                <!-- OTP Info text -->
+                <TextView
+                    android:id="@+id/tvOTPInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:gravity="center"
+                    android:text="Un code de vérification sera envoyé à votre email"
+                    android:textColor="#718096"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <!-- Progress bar for loading states -->
+                <ProgressBar
+                    android:id="@+id/progressBar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginBottom="16dp"
+                    android:indeterminateTint="#5E17EB"
+                    android:visibility="gone" />
 
                 <!-- Divider -->
                 <LinearLayout

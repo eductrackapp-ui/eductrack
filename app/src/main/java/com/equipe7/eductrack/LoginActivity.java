@@ -22,13 +22,15 @@ public class LoginActivity extends AppCompatActivity {
 
     private TextInputLayout tilEmail, tilPassword;
     private TextInputEditText etEmail, etPassword;
-    private Button btnSignIn;
+    private Button btnSignIn, btnOTPLogin;
     private ImageView logo;
-    private TextView tvForgot, tvRegister;
+    private TextView tvForgot, tvRegister, tvOTPInfo;
     private ProgressBar progressBar;
 
     private FirebaseManager firebaseManager;
+    private EmailOTPService otpService;
     private boolean isLoading = false;
+    private boolean isOTPMode = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +39,9 @@ public class LoginActivity extends AppCompatActivity {
 
         // Initialize Firebase Manager
         firebaseManager = FirebaseManager.getInstance();
+        
+        // Initialize OTP Service
+        otpService = new EmailOTPService(this);
 
         // Initialize UI elements
         initializeViews();
@@ -50,17 +55,32 @@ public class LoginActivity extends AppCompatActivity {
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
         btnSignIn = findViewById(R.id.btnSignIn);
+        btnOTPLogin = findViewById(R.id.btnOTPLogin);
         logo = findViewById(R.id.logo);
         tvForgot = findViewById(R.id.tvForgot);
         tvRegister = findViewById(R.id.tvRegister);
-        // Note: progressBar is not in the new layout, we'll handle loading differently
-        // progressBar = findViewById(R.id.progressBar);
+        tvOTPInfo = findViewById(R.id.tvOTPInfo);
+        progressBar = findViewById(R.id.progressBar);
     }
 
     private void setupClickListeners() {
         btnSignIn.setOnClickListener(view -> {
             if (!isLoading) {
-                signInUser();
+                if (isOTPMode) {
+                    sendOTPForLogin();
+                } else {
+                    signInUser();
+                }
+            }
+        });
+
+        btnOTPLogin.setOnClickListener(view -> {
+            if (!isLoading) {
+                if (isOTPMode) {
+                    switchToPasswordMode();
+                } else {
+                    switchToOTPMode();
+                }
             }
         });
 
@@ -253,5 +273,129 @@ public class LoginActivity extends AppCompatActivity {
         }
         startActivity(intent);
         finish();
+    }
+
+    private void switchToOTPMode() {
+        isOTPMode = true;
+        tilPassword.setVisibility(View.GONE);
+        tvOTPInfo.setVisibility(View.VISIBLE);
+        btnSignIn.setText("Envoyer le code OTP");
+        btnOTPLogin.setText("Connexion avec mot de passe");
+    }
+
+    private void switchToPasswordMode() {
+        isOTPMode = false;
+        tilPassword.setVisibility(View.VISIBLE);
+        tvOTPInfo.setVisibility(View.GONE);
+        btnSignIn.setText("Se connecter");
+        btnOTPLogin.setText("Se connecter avec OTP");
+    }
+
+    private void sendOTPForLogin() {
+        // Clear previous errors
+        clearErrors();
+
+        String email = etEmail.getText().toString().trim();
+
+        // Validate email
+        if (TextUtils.isEmpty(email)) {
+            tilEmail.setError("Email is required");
+            return;
+        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            tilEmail.setError("Please enter a valid email address");
+            return;
+        }
+
+        // Show loading state
+        setLoadingState(true);
+
+        // First check if user exists in Firestore
+        firebaseManager.getFirestore()
+                .collection("users")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                        // User exists, send OTP
+                        DocumentSnapshot userDoc = task.getResult().getDocuments().get(0);
+                        User user = userDoc.toObject(User.class);
+                        
+                        if (user != null) {
+                            String otpType = "admin".equals(user.role) ? "admin_login" : "login";
+                            sendOTPEmail(email, user.username, otpType);
+                        } else {
+                            setLoadingState(false);
+                            showError("Error loading user data");
+                        }
+                    } else {
+                        setLoadingState(false);
+                        tilEmail.setError("No account found with this email");
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    setLoadingState(false);
+                    showError("Error checking user: " + e.getMessage());
+                });
+    }
+
+    private void sendOTPEmail(String email, String username, String otpType) {
+        String otpCode = otpService.generateOTP();
+        
+        // Store OTP in Firestore for verification
+        storeOTPInFirestore(email, otpCode);
+        
+        EmailOTPService.OTPCallback callback = new EmailOTPService.OTPCallback() {
+            @Override
+            public void onSuccess(String message) {
+                setLoadingState(false);
+                Toast.makeText(LoginActivity.this, "Code OTP envoyé à " + email, Toast.LENGTH_SHORT).show();
+                
+                // Navigate to verification activity
+                Intent intent = new Intent(LoginActivity.this, VerificationCodeActivity.class);
+                intent.putExtra("email", email);
+                intent.putExtra("otpType", otpType);
+                intent.putExtra("fromLogin", true);
+                startActivity(intent);
+            }
+
+            @Override
+            public void onFailure(String error) {
+                setLoadingState(false);
+                showError("Erreur lors de l'envoi de l'OTP: " + error);
+            }
+        };
+        
+        if ("admin_login".equals(otpType)) {
+            otpService.sendAdminLoginOTP(email, username, otpCode, callback);
+        } else {
+            otpService.sendLoginOTP(email, username, otpCode, callback);
+        }
+    }
+    
+    private void storeOTPInFirestore(String email, String otpCode) {
+        // Store OTP with timestamp for verification
+        firebaseManager.getFirestore()
+                .collection("otps")
+                .document(email)
+                .set(new java.util.HashMap<String, Object>() {{
+                    put("code", otpCode);
+                    put("timestamp", System.currentTimeMillis());
+                    put("used", false);
+                }});
+    }
+
+    private boolean validateOTPInputs(String email) {
+        boolean isValid = true;
+
+        // Validate email
+        if (TextUtils.isEmpty(email)) {
+            tilEmail.setError("Email is required");
+            isValid = false;
+        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            tilEmail.setError("Please enter a valid email address");
+            isValid = false;
+        }
+
+        return isValid;
     }
 }
